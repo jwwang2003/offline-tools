@@ -1,17 +1,20 @@
-const path = require('path')
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-const BundleAnalyzerPlugin =
-  require('webpack-bundle-analyzer').BundleAnalyzerPlugin
-// Brotli compression
-const CompressionPlugin = require('compression-webpack-plugin')
-const zlib = require('zlib')
+const path = require('path');
+const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
+const WebpackObfuscator = require('webpack-obfuscator');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const CompressionPlugin = require('compression-webpack-plugin');
+const zlib = require('zlib');
 
 module.exports = (options, argv) => {
-  const isProd = argv.mode === 'production' // development or production
+  const isProd = argv.mode === 'production';
 
   return {
     mode: argv.mode,
     entry: path.resolve(__dirname, 'src', 'index.js'),
+    devtool: 'inline-source-map',
     module: {
       rules: [
         {
@@ -21,41 +24,46 @@ module.exports = (options, argv) => {
           use: {
             loader: 'swc-loader',
             options: {
-              "jsc": {
-                "parser": {
-                  "syntax": "ecmascript",
-                  "jsx": true,
-                  "numericSeparator": false,
-                  "classPrivateProperty": false,
-                  "privateMethod": false,
-                  "classProperty": false,
-                  "functionBind": false,
-                  "decorators": false,
-                  "decoratorsBeforeExport": false
+              jsc: {
+                parser: {
+                  syntax: 'ecmascript',
+                  jsx: true,
+                  numericSeparator: false,
+                  classPrivateProperty: false,
+                  privateMethod: false,
+                  classProperty: false,
+                  functionBind: false,
+                  decorators: false,
+                  decoratorsBeforeExport: false,
                 },
-                "transform": {
-                  "react": {
-                    "pragma": "React.createElement",
-                    "pragmaFrag": "React.Fragment",
-                    "throwIfNamespace": true,
-                    "development": false,
-                    "useBuiltins": false
+                transform: {
+                  react: {
+                    pragma: 'React.createElement',
+                    pragmaFrag: 'React.Fragment',
+                    throwIfNamespace: true,
+                    development: false,
+                    useBuiltins: false,
                   },
-                  "optimizer": {
-                    "globals": {
-                      "vars": {
-                        "__DEBUG__": "true"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+                  optimizer: {
+                    globals: {
+                      vars: {
+                        __DEBUG__: 'true',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         {
-          test: /\.css$/i,
-          use: ['style-loader', 'css-loader'],
+          test: /\.(css|s[ac]ss)$/i,
+          use: [
+            isProd ? MiniCssExtractPlugin.loader : 'style-loader',
+            'css-loader',
+            'sass-loader',
+            'postcss-loader',
+          ],
         },
         {
           test: /\.(png|jpe?g|gif|svg|xml)$/i,
@@ -70,9 +78,9 @@ module.exports = (options, argv) => {
     resolve: {
       extensions: ['.js', '.jsx'],
       alias: {
-        "react": "preact/compat",
-        "react-dom": "preact/compat"
-      }
+        react: 'preact/compat',
+        'react-dom': 'preact/compat',
+      },
     },
     output: {
       path: path.resolve(__dirname, 'dist'),
@@ -83,8 +91,16 @@ module.exports = (options, argv) => {
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'public', 'index.html'),
       }),
-      isProd &&
-        new CompressionPlugin({
+      new webpack.ProvidePlugin({
+        React: 'react',
+        '{ h }': 'preact',
+      }),
+      new MiniCssExtractPlugin({
+        filename: '[name].css',
+        chunkFilename: '[id].css',
+      }),
+      isProd
+        && new CompressionPlugin({
           filename: '[path][base].br',
           algorithm: 'brotliCompress',
           test: /\.(js|css|html|svg)$/,
@@ -97,14 +113,18 @@ module.exports = (options, argv) => {
           minRatio: 0.8,
           deleteOriginalAssets: false,
         }),
-      // // bundle analyzer http://127.0.0.1:8888/
-      // new BundleAnalyzerPlugin({
-      //   analyzerMode: 'static',
-      //   openAnalyzer: isProd,
-      // }),
+      isProd
+        && new WebpackObfuscator({
+          rotateStringArray: true,
+        }, []),
+      // bundle analyzer http://127.0.0.1:8888/
+      new BundleAnalyzerPlugin({
+        analyzerMode: isProd ? 'static' : 'server',
+      }),
     ].filter(Boolean),
     devServer: {
+      hot: true,
       historyApiFallback: true,
     },
-  }
-}
+  };
+};
