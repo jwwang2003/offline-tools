@@ -2,8 +2,8 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-
 const WebpackObfuscator = require('webpack-obfuscator');
+const CopyPlugin = require('copy-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 const CompressionPlugin = require('compression-webpack-plugin');
 const zlib = require('zlib');
@@ -89,7 +89,7 @@ module.exports = (options, argv) => {
     },
     plugins: [
       new HtmlWebpackPlugin({
-        template: path.resolve(__dirname, 'public', 'index.html'),
+        template: path.resolve(__dirname, 'src', 'index.html'),
       }),
       new webpack.ProvidePlugin({
         React: 'react',
@@ -99,28 +99,34 @@ module.exports = (options, argv) => {
         filename: '[name].css',
         chunkFilename: '[id].css',
       }),
-      isProd
-        && new CompressionPlugin({
-          filename: '[path][base].br',
-          algorithm: 'brotliCompress',
-          test: /\.(js|css|html|svg)$/,
-          compressionOptions: {
-            params: {
-              [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
-            },
-          },
-          threshold: 10240,
-          minRatio: 0.8,
-          deleteOriginalAssets: false,
-        }),
+      // bundle analyzer http://127.0.0.1:8888/
+      // new BundleAnalyzerPlugin({
+      //   analyzerMode: isProd ? 'static' : 'server',
+      // }),
+      // isProd
+      //   && new CompressionPlugin({
+      //     filename: '[path][base].br',
+      //     algorithm: 'brotliCompress',
+      //     test: /\.(js|css|html|svg)$/,
+      //     compressionOptions: {
+      //       params: {
+      //         [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+      //       },
+      //     },
+      //     threshold: 10240,
+      //     minRatio: 0.8,
+      //     deleteOriginalAssets: false,
+      //   }),
       isProd
         && new WebpackObfuscator({
           rotateStringArray: true,
         }, []),
-      // bundle analyzer http://127.0.0.1:8888/
-      new BundleAnalyzerPlugin({
-        analyzerMode: isProd ? 'static' : 'server',
-      }),
+      isProd
+        && new CopyPlugin({
+          patterns: [
+            'public',
+          ],
+        }),
     ].filter(Boolean),
     devServer: {
       hot: true,
